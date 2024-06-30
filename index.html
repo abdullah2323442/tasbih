@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasbih Counter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.28.0/feather.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white">
+    <div class="w-full max-w-md p-8 rounded-lg shadow-lg transition-all duration-300 bg-white dark:bg-gray-800">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold">Tasbih Counter</h1>
+            <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300">
+                <i data-feather="moon"></i>
+            </button>
+        </div>
+        <div class="text-center">
+            <div id="count" class="text-6xl font-bold mb-8 animate-pulse">0</div>
+            <button id="countButton" class="w-full py-4 rounded-lg text-xl font-semibold mb-4 transition-all duration-300 transform hover:scale-105 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">
+                Count
+            </button>
+            <button id="resetButton" class="flex items-center justify-center w-full py-2 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">
+                <i data-feather="refresh-cw" class="mr-2"></i>
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let count = 0;
+        const countElement = document.getElementById('count');
+        const countButton = document.getElementById('countButton');
+        const resetButton = document.getElementById('resetButton');
+        const themeToggle = document.getElementById('themeToggle');
+
+        function updateCount() {
+            countElement.textContent = count;
+            localStorage.setItem('tasbihCount', count.toString());
+            localStorage.setItem('tasbihDate', new Date().toDateString());
+        }
+
+        function incrementCount() {
+            count++;
+            updateCount();
+        }
+
+        function resetCount() {
+            count = 0;
+            updateCount();
+        }
+
+        function setTheme(isDark) {
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                themeToggle.innerHTML = '<i data-feather="sun"></i>';
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeToggle.innerHTML = '<i data-feather="moon"></i>';
+            }
+            localStorage.setItem('darkMode', isDark);
+            feather.replace();
+        }
+
+        function toggleTheme() {
+            const isDark = !document.documentElement.classList.contains('dark');
+            setTheme(isDark);
+        }
+
+        countButton.addEventListener('click', incrementCount);
+        resetButton.addEventListener('click', resetCount);
+        themeToggle.addEventListener('click', toggleTheme);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                incrementCount();
+            }
+        });
+
+        // Load saved count
+        const savedCount = localStorage.getItem('tasbihCount');
+        const savedDate = localStorage.getItem('tasbihDate');
+        const currentDate = new Date().toDateString();
+
+        if (savedCount && savedDate === currentDate) {
+            count = parseInt(savedCount, 10);
+            updateCount();
+        }
+
+        // Check system preference for dark mode
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // Load user preference for dark mode or use system preference
+        const darkModePreference = localStorage.getItem('darkMode');
+        if (darkModePreference !== null) {
+            setTheme(darkModePreference === 'true');
+        } else {
+            setTheme(prefersDark);
+        }
+
+        // Initialize Feather icons
+        feather.replace();
+    </script>
+</body>
+</html>
