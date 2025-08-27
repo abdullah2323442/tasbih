@@ -3,108 +3,405 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A highly animated Tasbih Counter with customizable settings and sound effects">
     <title>Tasbih Counter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.28.0/feather.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 25px 15px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .glow-pulse {
+            animation: pulse-glow 1.5s ease-in-out infinite;
+        }
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.9), transparent);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.5s ease-in-out;
+        }
+        .settings-panel {
+            transition: transform 0.3s ease-in-out;
+        }
+        .settings-panel.hidden {
+            transform: translateX(100%);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
     <script>
         tailwind.config = {
             darkMode: 'class',
+            theme: {
+                extend: {
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(circle, rgba(34,197,94,0.2) 0%, transparent 70%)',
+                        'gradient-hero': 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(45,212,191,0.1))',
+                    },
+                    animation: {
+                        'fade-in': 'fade-in 0.5s ease-out',
+                    },
+                }
+            }
         }
     </script>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300 bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white">
-    <div class="w-full max-w-md p-8 rounded-lg shadow-lg transition-all duration-300 bg-white dark:bg-gray-800">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">Tasbih Counter</h1>
-            <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-300">
-                <i data-feather="moon"></i>
-            </button>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-gray-100 to-gray-300 dark:from-gray-900 dark:to-gray-800 transition-colors duration-700 overflow-hidden">
+    <div class="relative w-full max-w-lg p-10 rounded-3xl shadow-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl transition-all duration-700">
+        <div class="absolute inset-0 bg-gradient-radial opacity-60"></div>
+        <div class="flex justify-between items-center mb-12">
+            <h1 class="text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-green-500 to-teal-500 dark:from-green-400 dark:to-teal-400">Tasbih Counter</h1>
+            <div class="flex space-x-4">
+                <button id="themeToggle" class="p-3 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors duration-300 transform hover:scale-110" aria-label="Toggle theme">
+                    <i data-feather="moon" class="w-6 h-6"></i>
+                </button>
+                <button id="settingsToggle" class="p-3 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors duration-300 transform hover:scale-110" aria-label="Open settings">
+                    <i data-feather="settings" class="w-6 h-6"></i>
+                </button>
+            </div>
         </div>
-        <div class="text-center">
-            <div id="count" class="text-6xl font-bold mb-8 animate-pulse">0</div>
-            <button id="countButton" class="w-full py-4 rounded-lg text-xl font-semibold mb-4 transition-all duration-300 transform hover:scale-105 bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700">
+        <div class="text-center relative">
+            <svg class="progress-ring w-32 h-32 mx-auto mb-6" viewBox="0 0 100 100">
+                <circle class="progress-ring__circle stroke-gray-200 dark:stroke-gray-600" stroke-width="8" fill="transparent" r="44" cx="50" cy="50"/>
+                <circle id="progressCircle" class="progress-ring__circle stroke-green-500 dark:stroke-green-400" stroke-width="8" fill="transparent" r="44" cx="50" cy="50" stroke-dasharray="276.46" stroke-dashoffset="276.46"/>
+            </svg>
+            <div id="count" class="text-8xl font-extrabold mb-6 text-gray-900 dark:text-white tracking-tight" aria-live="polite">0</div>
+            <div id="timer" class="text-4xl font-mono mb-10 opacity-0 text-green-500 dark:text-green-400 glow-pulse" aria-live="polite">00:00:00</div>
+            <button id="countButton" class="relative w-full py-5 rounded-xl text-2xl font-semibold mb-6 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 dark:from-green-600 dark:to-teal-600 dark:hover:from-green-700 dark:hover:to-teal-700 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300 dark:focus:ring-green-800" aria-label="Increment count">
                 Count
             </button>
-            <button id="resetButton" class="flex items-center justify-center w-full py-2 rounded-lg text-lg font-semibold transition-all duration-300 transform hover:scale-105 bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">
-                <i data-feather="refresh-cw" class="mr-2"></i>
+            <button id="resetButton" class="flex items-center justify-center w-full py-4 rounded-xl text-xl font-semibold bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 dark:from-red-600 dark:to-rose-600 dark:hover:from-red-700 dark:hover:to-rose-700 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-red-300 dark:focus:ring-red-800" aria-label="Reset counter">
+                <i data-feather="refresh-cw" class="mr-3 w-5 h-5"></i>
                 Reset
             </button>
         </div>
     </div>
+    <div id="settingsPanel" class="fixed top-0 right-0 h-full w-80 p-6 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl shadow-2xl settings-panel hidden transform translate-x-full">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+            <button id="closeSettings" class="p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50" aria-label="Close settings">
+                <i data-feather="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="space-y-6">
+            <div>
+                <label for="animationSpeed" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Animation Speed</label>
+                <input type="range" id="animationSpeed" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+            </div>
+            <div>
+                <label for="soundToggle" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sound Effects</label>
+                <input type="checkbox" id="soundToggle" class="h-4 w-4 text-green-500 focus:ring-green-400 border-gray-300 rounded">
+            </div>
+            <div>
+                <label for="themeColor" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Theme Color</label>
+                <select id="themeColor" class="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="green">Green</option>
+                    <option value="blue">Blue</option>
+                    <option value="purple">Purple</option>
+                </select>
+            </div>
+        </div>
+    </div>
 
     <script>
-        let count = 0;
-        const countElement = document.getElementById('count');
-        const countButton = document.getElementById('countButton');
-        const resetButton = document.getElementById('resetButton');
-        const themeToggle = document.getElementById('themeToggle');
-
-        function updateCount() {
-            countElement.textContent = count;
-            localStorage.setItem('tasbihCount', count.toString());
-            localStorage.setItem('tasbihDate', new Date().toDateString());
-        }
-
-        function incrementCount() {
-            count++;
-            updateCount();
-        }
-
-        function resetCount() {
-            count = 0;
-            updateCount();
-        }
-
-        function setTheme(isDark) {
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-                themeToggle.innerHTML = '<i data-feather="sun"></i>';
-            } else {
-                document.documentElement.classList.remove('dark');
-                themeToggle.innerHTML = '<i data-feather="moon"></i>';
+        class TasbihCounter {
+            constructor() {
+                this.count = 0;
+                this.timerInterval = null;
+                this.startTime = null;
+                this.animationSpeed = 1;
+                this.soundEnabled = true;
+                this.themeColor = 'green';
+                this.elements = {
+                    count: document.getElementById('count'),
+                    timer: document.getElementById('timer'),
+                    countButton: document.getElementById('countButton'),
+                    resetButton: document.getElementById('resetButton'),
+                    themeToggle: document.getElementById('themeToggle'),
+                    settingsToggle: document.getElementById('settingsToggle'),
+                    settingsPanel: document.getElementById('settingsPanel'),
+                    closeSettings: document.getElementById('closeSettings'),
+                    animationSpeed: document.getElementById('animationSpeed'),
+                    soundToggle: document.getElementById('soundToggle'),
+                    themeColor: document.getElementById('themeColor'),
+                    progressCircle: document.getElementById('progressCircle')
+                };
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.init();
             }
-            localStorage.setItem('darkMode', isDark);
-            feather.replace();
-        }
 
-        function toggleTheme() {
-            const isDark = !document.documentElement.classList.contains('dark');
-            setTheme(isDark);
-        }
-
-        countButton.addEventListener('click', incrementCount);
-        resetButton.addEventListener('click', resetCount);
-        themeToggle.addEventListener('click', toggleTheme);
-
-        document.addEventListener('keydown', (event) => {
-            if (event.code === 'Space') {
-                incrementCount();
+            createParticle(x, y) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                document.body.appendChild(particle);
+                const size = Math.random() * 10 + 5;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                gsap.to(particle, {
+                    x: (Math.random() - 0.5) * 120,
+                    y: (Math.random() - 0.5) * 120,
+                    opacity: 0,
+                    scale: 0,
+                    duration: 0.8 / this.animationSpeed,
+                    ease: 'power2.out',
+                    onComplete: () => particle.remove()
+                });
             }
-        });
 
-        // Load saved count
-        const savedCount = localStorage.getItem('tasbihCount');
-        const savedDate = localStorage.getItem('tasbihDate');
-        const currentDate = new Date().toDateString();
+            playSound(frequency = 440, type = 'sine') {
+                if (!this.soundEnabled) return;
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5);
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.currentTime);
+                oscillator.start();
+                oscillator.stop(this.audioContext.currentTime + 0.5);
+            }
 
-        if (savedCount && savedDate === currentDate) {
-            count = parseInt(savedCount, 10);
-            updateCount();
+            updateCount() {
+                this.elements.count.textContent = this.count;
+                localStorage.setItem('tasbihCount', this.count.toString());
+                localStorage.setItem('tasbihDate', new Date().toDateString());
+                const progress = (this.count % 33) / 33 * 276.46;
+                gsap.to(this.elements.progressCircle, {
+                    strokeDashoffset: 276.46 - progress,
+                    duration: 0.5 / this.animationSpeed,
+                    ease: 'power2.out'
+                });
+            }
+
+            formatTime(seconds) {
+                const hrs = Math.floor(seconds / 3600);
+                const mins = Math.floor((seconds % 3600) / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            startTimer() {
+                if (!this.timerInterval) {
+                    this.startTime = Date.now();
+                    this.timerInterval = setInterval(() => {
+                        const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                        this.elements.timer.textContent = this.formatTime(elapsed);
+                        gsap.to(this.elements.timer, {
+                            scale: 1.05,
+                            duration: 0.3 / this.animationSpeed,
+                            ease: 'power1.inOut',
+                            yoyo: true,
+                            repeat: 1
+                        });
+                    }, 1000);
+                    gsap.fromTo(this.elements.timer,
+                        { opacity: 0, y: 20, scale: 0.8 },
+                        { opacity: 1, y: 0, scale: 1, duration: 0.8 / this.animationSpeed, ease: 'elastic.out(1, 0.5)' }
+                    );
+                }
+            }
+
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                    gsap.to(this.elements.timer, {
+                        opacity: 0,
+                        y: 20,
+                        scale: 0.8,
+                        duration: 0.5 / this.animationSpeed,
+                        ease: 'power2.in'
+                    });
+                }
+            }
+
+            incrementCount(event) {
+                this.count++;
+                this.updateCount();
+                if (this.count === 1) {
+                    this.startTimer();
+                }
+                gsap.to(this.elements.count, {
+                    scale: 1.15,
+                    duration: 0.3 / this.animationSpeed,
+                    ease: 'power1.inOut',
+                    yoyo: true,
+                    repeat: 1
+                });
+                const rect = this.elements.countButton.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+                for (let i = 0; i < 6; i++) {
+                    this.createParticle(x, y);
+                }
+                this.playSound(440, 'sine');
+                if (this.count % 33 === 0) {
+                    gsap.to(this.elements.count, {
+                        color: '#22c55e',
+                        duration: 0.5 / this.animationSpeed,
+                        ease: 'power2.out',
+                        onComplete: () => gsap.set(this.elements.count, { color: '' })
+                    });
+                }
+            }
+
+            resetCount() {
+                this.count = 0;
+                this.updateCount();
+                this.stopTimer();
+                this.elements.timer.textContent = '00:00:00';
+                gsap.to(this.elements.count, {
+                    scale: 1.2,
+                    rotation: 360,
+                    duration: 0.5 / this.animationSpeed,
+                    ease: 'power2.out',
+                    onComplete: () => gsap.set(this.elements.count, { rotation: 0 })
+                });
+                this.playSound(220, 'triangle');
+            }
+
+            setTheme(isDark) {
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    this.elements.themeToggle.innerHTML = '<i data-feather="sun" class="w-6 h-6"></i>';
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    this.elements.themeToggle.innerHTML = '<i data-feather="moon" class="w-6 h-6"></i>';
+                }
+                localStorage.setItem('darkMode', isDark);
+                feather.replace();
+                gsap.to(this.elements.themeToggle, {
+                    rotation: 180,
+                    duration: 0.5 / this.animationSpeed,
+                    ease: 'power2.inOut'
+                });
+            }
+
+            toggleSettings() {
+                const isHidden = this.elements.settingsPanel.classList.contains('hidden');
+                this.elements.settingsPanel.classList.toggle('hidden');
+                gsap.to(this.elements.settingsPanel, {
+                    x: isHidden ? 0 : '100%',
+                    duration: 0.3 / this.animationSpeed,
+                    ease: 'power2.inOut'
+                });
+            }
+
+            updateThemeColor(color) {
+                const colors = {
+                    green: ['from-green-500', 'to-teal-500', 'from-green-600', 'to-teal-600', 'from-green-700', 'to-teal-700', 'stroke-green-500', 'stroke-green-400'],
+                    blue: ['from-blue-500', 'to-cyan-500', 'from-blue-600', 'to-cyan-600', 'from-blue-700', 'to-cyan-700', 'stroke-blue-500', 'stroke-blue-400'],
+                    purple: ['from-purple-500', 'to-indigo-500', 'from-purple-600', 'to-indigo-600', 'from-purple-700', 'to-indigo-700', 'stroke-purple-500', 'stroke-purple-400']
+                };
+                const [from, to, hoverFrom, hoverTo, darkHoverFrom, darkHoverTo, stroke, strokeDark] = colors[color];
+                this.elements.countButton.className = this.elements.countButton.className.replace(/from-\w+-\d+ to-\w+-\d+/g, `${from} ${to} hover:${hoverFrom} hover:${to} dark:${hoverFrom} dark:${to} dark:hover:${darkHoverFrom} dark:hover:${darkHoverTo}`);
+                this.elements.progressCircle.className = this.elements.progressCircle.className.replace(/stroke-\w+-\d+/g, `${stroke} dark:${strokeDark}`);
+                localStorage.setItem('themeColor', color);
+            }
+
+            init() {
+                this.elements.countButton.addEventListener('click', (e) => this.incrementCount(e));
+                this.elements.resetButton.addEventListener('click', () => this.resetCount());
+                this.elements.themeToggle.addEventListener('click', () => this.setTheme(!document.documentElement.classList.contains('dark')));
+                this.elements.settingsToggle.addEventListener('click', () => this.toggleSettings());
+                this.elements.closeSettings.addEventListener('click', () => this.toggleSettings());
+                this.elements.animationSpeed.addEventListener('input', (e) => {
+                    this.animationSpeed = parseFloat(e.target.value);
+                    localStorage.setItem('animationSpeed', this.animationSpeed);
+                });
+                this.elements.soundToggle.addEventListener('change', (e) => {
+                    this.soundEnabled = e.target.checked;
+                    localStorage.setItem('soundEnabled', this.soundEnabled);
+                });
+                this.elements.themeColor.addEventListener('change', (e) => {
+                    this.themeColor = e.target.value;
+                    this.updateThemeColor(this.themeColor);
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.code === 'Space') {
+                        event.preventDefault();
+                        this.incrementCount(event);
+                    }
+                    if (event.code === 'KeyR') {
+                        this.resetCount();
+                    }
+                });
+
+                // Load saved state
+                const savedCount = localStorage.getItem('tasbihCount');
+                const savedDate = localStorage.getItem('tasbihDate');
+                const currentDate = new Date().toDateString();
+                if (savedCount && savedDate === currentDate) {
+                    this.count = parseInt(savedCount, 10);
+                    this.updateCount();
+                }
+
+                // Load preferences
+                const darkModePreference = localStorage.getItem('darkMode');
+                if (darkModePreference !== null) {
+                    this.setTheme(darkModePreference === 'true');
+                } else {
+                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    this.setTheme(prefersDark);
+                }
+
+                const savedAnimationSpeed = localStorage.getItem('animationSpeed');
+                if (savedAnimationSpeed) {
+                    this.animationSpeed = parseFloat(savedAnimationSpeed);
+                    this.elements.animationSpeed.value = this.animationSpeed;
+                }
+
+                const savedSoundEnabled = localStorage.getItem('soundEnabled');
+                if (savedSoundEnabled !== null) {
+                    this.soundEnabled = savedSoundEnabled === 'true';
+                    this.elements.soundToggle.checked = this.soundEnabled;
+                }
+
+                const savedThemeColor = localStorage.getItem('themeColor');
+                if (savedThemeColor) {
+                    this.themeColor = savedThemeColor;
+                    this.elements.themeColor.value = this.themeColor;
+                    this.updateThemeColor(this.themeColor);
+                }
+
+                // Initial animations
+                gsap.from('.max-w-lg', {
+                    opacity: 0,
+                    scale: 0.8,
+                    duration: 1,
+                    ease: 'elastic.out(1, 0.5)'
+                });
+
+                // Initialize Feather icons
+                feather.replace();
+            }
         }
 
-        // Check system preference for dark mode
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        // Load user preference for dark mode or use system preference
-        const darkModePreference = localStorage.getItem('darkMode');
-        if (darkModePreference !== null) {
-            setTheme(darkModePreference === 'true');
-        } else {
-            setTheme(prefersDark);
-        }
-
-        // Initialize Feather icons
-        feather.replace();
+        // Initialize the counter
+        const tasbih = new TasbihCounter();
     </script>
 </body>
 </html>
